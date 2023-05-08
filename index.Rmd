@@ -1,0 +1,177 @@
+---
+title: "QB Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: column
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+install.packages("ggplot2", repos = 'http://cran.us.r-project.org')
+install.packages("waffle", repos = 'http://cran.us.r-project.org')
+install.packages("readxl", repos = 'http://cran.us.r-project.org')
+install.packages("tidyverse", repos = 'http://cran.us.r-project.org')
+install.packages("writexl", repos = 'http://cran.us.r-project.org')
+install.packages("ggplot2", repos = 'http://cran.us.r-project.org')
+
+
+
+library(flexdashboard)
+library(tidyverse)
+library(ggplot2)
+library(waffle)
+library(writexl)
+library(readxl)
+
+```
+
+```{r}
+setwd("C:/Users/Darnell W/Desktop/R_DASHBOARDS")
+qb_final <- read_xlsx("C:/Users/Darnell W/Desktop/R_DASHBOARDS/flex_dashboards/qbfinal.xlsx")
+
+
+```
+
+# Regular Season
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### Average passer rating of quartberbacks by round drafted 
+
+```{r}
+rtg<-qb_final %>% 
+  group_by(round_drafted) %>% 
+  summarize(across(c("rtg"), ~ mean(.x, na.rm = TRUE))) %>% 
+  arrange(desc(rtg))
+```          
+```{r fig.width=23, fig.height=9}
+rtg %>%
+  mutate(round_drafted = fct_reorder(round_drafted, rtg)) %>%
+  mutate(across(c('rtg'), round, 0)) %>% 
+  ggplot( aes(x=round_drafted, y=rtg, fill = round_drafted)) +
+  geom_point(size = 6) +
+  geom_segment(aes(x = round_drafted, xend = round_drafted, 
+                   y = 0, yend = rtg), size = 2.5) +
+  scale_y_continuous(limits = c(0, 90), breaks = c(0, 15, 30, 45, 60, 75, 90)) +
+  geom_label(aes(label = rtg), size = 15) +
+  labs(title = "Average QB Rating 02'-21'",
+       
+       y = "Quartback Rating",
+       x = "Round Drafted") +
+  theme(legend.position = "none",
+        plot.title=element_text(size = 24),
+        plot.subtitle=element_text(size = 22),
+        axis.title.x = element_text(size = 26),
+        axis.title.y = element_text(size = 26),
+        axis.text = element_text(size = 23)) +
+  coord_flip() 
+
+```
+
+
+
+
+### Average defense ranking of quartberbacks by round drafted
+
+```{r}
+defense_rank <-
+qb_final %>% 
+  dplyr::group_by(round_drafted) %>% 
+  dplyr::summarize(across(c("defense_rank"), ~ mean(.x, na.rm = TRUE))) %>% 
+  arrange(defense_rank)
+
+```
+```{r fig.width=15, fig.height=5}
+defense_rank %>%
+  mutate(round_drafted = fct_reorder(round_drafted, defense_rank)) %>%
+  mutate(across(c('defense_rank'), round, 0)) %>% 
+  ggplot(aes(x = as.factor(round_drafted), y = defense_rank, fill=as.factor(round_drafted) )) +
+  geom_col() + 
+ 
+  geom_label(aes(label = defense_rank), size = 10) +
+  labs(subtitle="2002-2021", 
+       title= "Defense Rankings of Quarterbacks",
+       y="Defense Rank (Average)", 
+       x="Round Drafted")+
+  theme(legend.position = "none",
+        plot.title=element_text(hjust=0.5, size = 20),
+        plot.subtitle=element_text(hjust=0.5, size = 18),
+        axis.title.x = element_text(size = 18),
+        axis.title.y = element_text(size = 18),
+        axis.text = element_text(size = 22))
+```
+
+column {data-width=500}
+-----------------------------------------------------------------------
+### Quarterbacks that made the playoffs
+
+
+
+```{r}
+
+qb_final %>% 
+  filter(!is.na(playoff_rtg)) %>% 
+  mutate(across(c('rtg'), round, 0)) %>% 
+  group_by(round_drafted) %>% 
+  ggplot(aes(x=round_drafted, y=rtg, color=round_drafted)) + 
+  geom_boxplot() +
+  geom_jitter() +
+  labs(
+    title= "Playoff Qaurterbacks",
+    subtitle = "2002-2021",
+    x = "Round Drafted",
+    y = "QB Rating (Average)") +
+  theme(legend.position = "none",
+        plot.title=element_text(hjust=0.5, size = 10),
+        plot.subtitle=element_text(hjust=0.5, size = 8))
+
+```
+
+# Superbowl {data-orientation=rows}
+
+##Column {data_width=500}
+-----------------------------------------------------------------------
+
+### Percentage of quarterbacks from the lasts 20 Superbowls
+
+```{r}
+ waffle(c( "First round 50%"= 50, "Sixth round 25%" = 25,"Second round 8%"= 8, "Third round 8%" = 8, "Undrafted 5%" = 5,
+         "Fourth round 2%" = 2,  "Ninth round 2%" = 2),
+       rows = 10,  title = 'Superbowl QBs',
+       legend_pos="left")+
+  theme(legend.text = element_text(size=14))
+
+```
+
+### Number of different quarterbacks that made it to the Superbowl
+```{r}
+qb_final %>% 
+  group_by(round_drafted, player) %>% 
+  filter(superbowl =="yes") %>% 
+  summarize_at(vars(rtg), list(group = mean)) %>% 
+  mutate(round_drafted = str_replace(round_drafted, "1", "Round 1")) %>% 
+  mutate(round_drafted = str_replace(round_drafted, "2", "Round 2")) %>%
+  mutate(round_drafted = str_replace(round_drafted, "3", "Round 3")) %>%
+  mutate(round_drafted = str_replace(round_drafted, "4", "Round 4")) %>%
+  mutate(round_drafted = str_replace(round_drafted, "6", "Round 6")) %>%
+  mutate(round_drafted = str_replace(round_drafted, "9", "Round 9")) %>% 
+  #mutate(round_drafted = str_replace(round_drafted, "NA", "Undrafted")) %>% 
+  ggplot(aes(x = player, y = group,  color = group))  +
+  geom_point(size = 3) +
+  facet_wrap(~round_drafted) +
+  theme(legend.position="none",
+        strip.background = element_rect(colour="black",
+                                        fill="white"),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_text(size = 14),
+        axis.title.y = element_text(size = 14),
+        plot.subtitle=element_text(hjust=0.5, size = 14),
+        plot.title=element_text(hjust=0.5, size = 20),
+  ) +
+  labs(
+    title= "Superbowl QBs 02'-21'",
+    
+    x = "Quarterbacks",
+    y = "Playoff Rating (Average)")
+```
